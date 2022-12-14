@@ -1,0 +1,87 @@
+vars:
+  - ../sessions.yaml:sessions_single
+  - ../sessions.yaml:sessions_paired
+  - ../sessions.yaml:sessions
+
+stages:
+
+  c1_single:
+    foreach: ${sessions_single}
+    do:
+      cmd:
+        - test -f ../second/data/b2/${key}
+        - mkdir -p data/c1
+        - echo c1 ${key} > data/c1/${key}
+      deps:
+        - ../second/data/b2/${key}
+      outs:
+        - data/c1/${key}
+
+  c1_paired:
+    foreach: ${sessions_paired}
+    do:
+      cmd:
+        - test -f ../second/data/b2/${key}
+        - mkdir -p data/c1
+        - echo c1 ${key} > data/c1/${key}
+      deps:
+        - ../second/data/b2/${key}
+      outs:
+        - data/c1/${key}
+
+  c2_all:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/c1/${key}
+        - mkdir -p data/c2
+        - echo c2 ${key} > data/c2/${key}
+      deps:
+        - data/c1/${key}
+      outs:
+        - data/c2/${key}
+
+  c2_paired:
+    foreach: ${sessions_paired}
+    do:
+      cmd:
+        - test -f data/c1/${key}
+        - mkdir -p data/c2
+        - echo c2 ${key} > data/c2/${key}_paired
+      deps:
+        - data/c1/${key}
+      outs:
+        - data/c2/${key}_paired
+
+  c3_all:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/c2/${key}
+        - mkdir -p data/c3
+        - echo c3 ${key} > data/c3/${key}
+      deps:
+        - data/c2/${key}
+      outs:
+        - data/c3/${key}
+
+  c3_paired:
+    foreach: ${sessions_paired}
+    do:
+      cmd:
+        - test -f data/c2/${key}_paired
+        - mkdir -p data/c3
+        - echo c3_paired ${key} > data/c3/${key}_paired
+      deps:
+        - data/c2/${key}_paired
+      outs:
+        - data/c3/${key}_paired
+
+  c4:
+    cmd:
+      - test -d data/c3
+      - ls data/c3 > data/c4
+    deps:
+      - data/c3
+    outs:
+      - data/c4

@@ -1,0 +1,17 @@
+sessions_paired: &sessions_paired
+  paired_1a:
+    pair: paired_1b
+  paired_1b:
+    pair: paired_1a
+  paired_2a:
+    pair: paired_2b
+  paired_2b:
+    pair: paired_2a
+
+sessions_single: &sessions_single
+  single_1: {}
+  single_2: {}
+  single_3: {}
+
+sessions:
+  << : [ *sessions_single, *sessions_paired ]

@@ -1,0 +1,70 @@
+vars:
+  - ../sessions.yaml:sessions
+
+stages:
+  b1:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/a2/${key}
+        - mkdir -p data/b1
+        - echo b1 ${key} > data/b1/${key}
+      deps:
+        - data/a2/${key}
+      outs:
+        - data/b1/${key}
+
+  b2:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/b1/${key}
+        - mkdir -p data/b2
+        - echo b2 ${key} > data/b2/${key}
+      deps:
+        - data/b1/${key}
+      outs:
+        - data/b2/${key}
+
+  b3:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/b1/${key}
+        - mkdir -p data/b3
+        - echo b3 ${key} > data/b3/${key}
+      deps:
+        - data/b1/${key}
+      outs:
+        - data/b3/${key}
+
+  b4:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/b2/${key} data/b3/${key}
+        - mkdir -p data/b4
+        - echo b4 ${key} > data/b4/${key}
+      deps:
+        - data/b2/${key}
+        - data/b3/${key}
+      outs:
+        - data/b4/${key}
+
+  b5:
+    cmd:
+      - test -d data/b4
+      - ls data/b4 > data/b5
+    deps:
+      - data/b4
+    outs:
+      - data/b5
+
+  b6:
+    foreach: ${other_thing}
+    do:
+      cmd: echo ${item} > other-${item}.txt
+      deps:
+        - data/b4
+      outs:
+        - other-${item}.txt

@@ -1,0 +1,9 @@
+version: '3.5'
+services:
+  dev:
+    build: ..
+    image: neuromancer:dev
+    volumes:
+      - ..:/home/neuromancer/app:cached
+    tty: true
+    command: sleep infinity

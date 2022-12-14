@@ -1,0 +1,26 @@
+vars:
+  - ../sessions.yaml:sessions
+
+stages:
+  a1:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - mkdir -p data/a1
+        - echo a1 ${key} > data/a1/${key}
+      outs:
+        - data/a1/${key}
+
+  a2:
+    foreach: ${sessions}
+    do:
+      cmd:
+        - test -f data/a1/${key}
+        - mkdir -p data/a2
+        - echo a2 ${key} > ../second/data/a2/${key}
+      params:
+        - condition
+      deps:
+        - data/a1/${key}
+      outs:
+        - ../second/data/a2/${key}
