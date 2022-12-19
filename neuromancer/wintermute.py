@@ -95,7 +95,8 @@ def wintermute(
     session_stages = _get_session_stages(dvc_repo, project_dir, pipelines=pipelines)
 
     if not session_stages:
-        raise ValueError(f"No stages found for pipelines {pipelines}")
+        logger.warning("No stages found for pipelines %s", pipelines)
+        return
 
     output_dir = project_dir / _OUTPUT_DIR_NAME
     output_dir.mkdir(exist_ok=True, parents=True)
@@ -159,40 +160,45 @@ def _get_session_stages(
 
     session_stages: Dict[str, Set[str]] = defaultdict(set)
     stage_loaders: Dict[str, DvcStageLoader] = {}
-    for stage in cast(List[dvc.stage.Stage], dvc_repo.stages):
-        if not isinstance(stage.dvcfile, dvc.dvcfile.PipelineFile):
-            continue
+    with dvc.repo.lock_repo(dvc_repo):
+        for stage in cast(List[dvc.stage.Stage], dvc_repo.stages):
+            if not isinstance(stage.dvcfile, dvc.dvcfile.PipelineFile):
+                continue
 
-        pipeline_file: str = cast(str, stage.path_in_repo)
-        pipeline_name = get_pipeline_name(project_dir / pipeline_file)
-        if pipeline_name not in pipelines:
-            logger.debug("%s not in included pipelines, skipping", pipeline_name)
-            continue
+            pipeline_file: str = cast(str, stage.path_in_repo)
+            pipeline_name = get_pipeline_name(project_dir / pipeline_file)
+            if pipeline_name not in pipelines:
+                logger.debug("%s not in included pipelines, skipping", pipeline_name)
+                continue
 
-        stage_name, is_parametrized, session_id = cast(str, stage.name).rpartition(
-            dvc.parsing.JOIN
-        )
-        if not is_parametrized:
-            logger.debug("Stage %s is not parametrized, skipping", stage.name)
-            continue
-
-        if pipeline_file not in stage_loaders:
-            stage_loaders[pipeline_file] = stage.dvcfile.stages
-        stage_loader = stage_loaders[pipeline_file]
-        if (
-            stage_data := cast(
-                Dict[str, Any],
-                stage_loader.stages_data.get(stage_name, None),
+            stage_name, is_parametrized, session_id = cast(str, stage.name).rpartition(
+                dvc.parsing.JOIN
             )
-        ) is None or "sessions" not in stage_data.get(dvc.parsing.FOREACH_KWD, ""):
-            logger.debug(
-                "Stage %s is not parametrized over sessions, skipping", stage_name
-            )
-            continue
+            if not is_parametrized:
+                logger.debug("Stage %s is not parametrized, skipping", stage_name)
+                continue
 
-        full_stage_name = f"{pipeline_file}:{stage_name}"
-        logger.debug("Adding stage %s to session %s", full_stage_name, session_id)
-        session_stages[session_id].add(full_stage_name)
+            if pipeline_file not in stage_loaders:
+                stage_loaders[pipeline_file] = stage.dvcfile.stages
+            stage_loader = stage_loaders[pipeline_file]
+            if (
+                stage_data := cast(
+                    Dict[str, Any],
+                    stage_loader.stages_data.get(stage_name, None),
+                )
+            ) is None or "sessions" not in stage_data.get(dvc.parsing.FOREACH_KWD, ""):
+                logger.debug(
+                    "Stage %s is not parametrized over sessions, skipping", stage_name
+                )
+                continue
+
+            if not stage.changed():
+                logger.debug("Stage %s has not changed, skipping", stage_name)
+                continue
+
+            full_stage_name = f"{pipeline_file}:{stage_name}"
+            logger.debug("Adding stage %s to session %s", full_stage_name, session_id)
+            session_stages[session_id].add(full_stage_name)
 
     logger.info("Collected stages for %d sessions", len(session_stages))
     return dict(session_stages)

@@ -65,7 +65,7 @@ def neuromancer(
     fetch: bool,
     retries: int,
 ):
-    from neuromancer import repro
+    from neuromancer import neuromancer
 
     attempt_file = output_dir / f"job-{idx_work_item}.log"
     try:
@@ -76,7 +76,7 @@ def neuromancer(
     attempt_file.write_text(str(attempt))
 
     try:
-        repro.neuromancer(
+        neuromancer.neuromancer(
             worklist_file,
             idx_work_item,
             output_dir,
@@ -161,9 +161,9 @@ def wintermute(
     tags: Tuple[str, ...],
     node_selectors: Tuple[str, ...],
 ):
-    from neuromancer import queue
+    from neuromancer import wintermute
 
-    queue.wintermute(
+    wintermute.wintermute(
         image,
         timeout,
         pipelines=pipelines or None,

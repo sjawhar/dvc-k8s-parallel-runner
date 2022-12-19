@@ -9,7 +9,7 @@ import git.repo
 import pytest
 import yaml
 
-from neuromancer import path, repro
+from neuromancer import neuromancer, path
 
 if TYPE_CHECKING:
     from pytest_mock import MockerFixture
@@ -112,7 +112,7 @@ def test_repro(
     spy_checkout = mocker.spy(dvc.repo.Repo, "checkout")
     spy_push = mocker.spy(dvc.repo.Repo, "push")
 
-    repro.neuromancer(
+    neuromancer.neuromancer(
         worklist_file, idx_work_item, output_dir, project_dir=project_dir, fetch=fetch
     )
 
@@ -187,7 +187,7 @@ def test_save_lock_files(
     ]
     output_dir = tmp_path / "output"
 
-    repro._save_lock_files(reproduced, working_dir, output_dir)
+    neuromancer._save_lock_files(reproduced, working_dir, output_dir)
 
     assert {
         str(file.relative_to(output_dir))

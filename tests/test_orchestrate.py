@@ -1,12 +1,12 @@
 import pathlib
 import shutil
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import dvc.repo
 import pytest
 import yaml
 
-from neuromancer import queue
+from neuromancer import path, wintermute
 
 
 def test_handle_outputs(tmp_path: pathlib.Path):
@@ -62,7 +62,7 @@ def test_handle_outputs(tmp_path: pathlib.Path):
     non_cached_out.parent.mkdir(exist_ok=True, parents=True)
     non_cached_out.write_text("HELLO")
 
-    queue._handle_outputs(output_dir, {"session_one", "session_two"}, project_dir)
+    wintermute._handle_outputs(output_dir, {"session_one", "session_two"}, project_dir)
 
     for pipeline, expected_stages in [
         (
@@ -236,10 +236,12 @@ def test_handle_outputs(tmp_path: pathlib.Path):
         ),
     ],
 )
+@pytest.mark.parametrize("unchanged_stages", [None, {("first", "a1", "single_1")}])
 def test_get_session_stages(
     tmp_path: pathlib.Path,
     pipelines: Optional[List[str]],
     expected_stages: Dict[str, Any],
+    unchanged_stages: Optional[Set[Tuple[str, str, str]]],
 ):
     shutil.copytree(
         pathlib.Path(__file__).parent / "data_fixtures/repo",
@@ -252,12 +254,27 @@ def test_get_session_stages(
         ],
     )
     dvc_repo: dvc.repo.Repo = dvc.repo.Repo.init(str(tmp_path), no_scm=True, force=True)
+    if unchanged_stages:
+        with path.run_in_dir(tmp_path):
+            for pipeline, stage, session_id in unchanged_stages:
+                stage_output = (
+                    tmp_path / "pipelines" / pipeline / "data" / stage / session_id
+                )
+                stage_output.parent.mkdir(exist_ok=True, parents=True)
+                stage_output.write_text(f"{stage} {session_id}")
+                dvc_repo.commit(
+                    f"pipelines/{pipeline}/dvc.yaml:{stage}@{session_id}", force=True
+                )
 
-    session_stages = queue._get_session_stages(dvc_repo, tmp_path, pipelines=pipelines)
+    session_stages = wintermute._get_session_stages(
+        dvc_repo, tmp_path, pipelines=pipelines
+    )
 
     assert session_stages == {
         session_id: {
-            f"pipelines/{pipeline}/dvc.yaml:{stage}" for pipeline, stage in stages
+            f"pipelines/{pipeline}/dvc.yaml:{stage}"
+            for pipeline, stage in stages
+            if not (pipeline, stage, session_id) in (unchanged_stages or {})
         }
         for session_id, stages in expected_stages.items()
     }
@@ -268,7 +285,7 @@ def test_get_terraform_hcl(tmp_path: pathlib.Path, fetch: bool):
     completions = 10
     workers = 4
     image = "foobar:test"
-    terraform_hcl = queue._get_terraform_hcl(
+    terraform_hcl = wintermute._get_terraform_hcl(
         completions=completions,
         image=image,
         project_dir=tmp_path,
